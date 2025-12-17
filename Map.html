@@ -8,10 +8,20 @@
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.15.0/mapbox-gl.css" rel="stylesheet" />
     <script src="https://api.mapbox.com/mapbox-gl-js/v3.15.0/mapbox-gl.js"></script>
 
+    <!-- Geocoder (search bar) -->
+    <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.3/mapbox-gl-geocoder.css" />
+    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.3/mapbox-gl-geocoder.min.js"></script>
+
     <style>
-      body, html { margin: 0; padding: 0; height: 100%; }
-      #map { position: absolute; inset: 0; }
-    </style>
+  body, html { margin: 0; padding: 0; height: 100%; width:100%; }
+  #map { position: absolute; top: 0; bottom: 0; width:100%; }
+
+  /* Put search bar next to the zoom buttons (top-left) */
+  .mapboxgl-ctrl-top-left { display: flex; flex-direction: row; align-items: flex-start; gap: 8px; }
+  .mapboxgl-ctrl-top-left .mapboxgl-ctrl { margin: 2.2 !important; }
+  .mapboxgl-ctrl-geocoder { min-width: 240px; width: 240px; }
+</style>
+
   </head>
 
   <body>
@@ -25,13 +35,63 @@
 
       const map = new mapboxgl.Map({
         container: "map",
-        style: "mapbox://styles/mapbox/streets-v12",
-        center: [6.52, 52.40],
+        style: "__STYLE_URL__",
+        center: [7.1508, 51.2562],
         pitch: 45,
         bearing: -20,
-        zoom: 12
+        zoom: 12.5
+      });
+
+      // Controls
+      map.addControl(new mapboxgl.NavigationControl(), "top-left");
+
+      map.addControl(
+        new MapboxGeocoder({
+          accessToken: mapboxgl.accessToken,
+          mapboxgl: mapboxgl,
+          marker: false,
+          placeholder: "Search a place..."
+        }),
+        "top-left"
+      );
+
+      // 3D buildings
+      map.on("style.load", () => {
+        const layers = map.getStyle().layers;
+        const labelLayerId = layers.find(
+          (l) => l.type === "symbol" && l.layout["text-field"]
+        ).id;
+
+        map.addLayer(
+          {
+            id: "add-3d-buildings",
+            source: "composite",
+            "source-layer": "building",
+            filter: ["==", ["get", "extrude"], "true"],
+            type: "fill-extrusion",
+            minzoom: 15,
+            paint: {
+              "fill-extrusion-color": "#ffffff",
+              "fill-extrusion-height": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                15, 0,
+                15.05, ["get", "height"]
+              ],
+              "fill-extrusion-base": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                15, 0,
+                15.05, ["get", "min_height"]
+              ],
+              "fill-extrusion-opacity": 1.0
+            }
+          },
+          labelLayerId
+        );
       });
     </script>
   </body>
 </html>
-
