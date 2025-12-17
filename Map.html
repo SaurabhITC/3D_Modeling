@@ -1,1 +1,37 @@
-<h1>Map file ready</h1>
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Map view</title>
+
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.15.0/mapbox-gl.css" rel="stylesheet" />
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.15.0/mapbox-gl.js"></script>
+
+    <style>
+      body, html { margin: 0; padding: 0; height: 100%; }
+      #map { position: absolute; inset: 0; }
+    </style>
+  </head>
+
+  <body>
+    <script id="mapbox-key" type="text/plain">__MAPBOX_KEY__</script>
+
+    <div id="map"></div>
+
+    <script>
+      mapboxgl.accessToken =
+        document.getElementById("mapbox-key").textContent.trim();
+
+      const map = new mapboxgl.Map({
+        container: "map",
+        style: "mapbox://styles/mapbox/streets-v12",
+        center: [6.52, 52.40],
+        pitch: 45,
+        bearing: -20,
+        zoom: 12
+      });
+    </script>
+  </body>
+</html>
+
