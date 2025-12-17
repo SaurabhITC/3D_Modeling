@@ -13,15 +13,14 @@
     <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.3/mapbox-gl-geocoder.min.js"></script>
 
     <style>
-  body, html { margin: 0; padding: 0; height: 100%; width:100%; }
-  #map { position: absolute; top: 0; bottom: 0; width:100%; }
+      body, html { margin: 0; padding: 0; height: 100%; width:100%; }
+      #map { position: absolute; top: 0; bottom: 0; width:100%; }
 
-  /* Put search bar next to the zoom buttons (top-left) */
-  .mapboxgl-ctrl-top-left { display: flex; flex-direction: row; align-items: flex-start; gap: 8px; }
-  .mapboxgl-ctrl-top-left .mapboxgl-ctrl { margin: 2.2 !important; }
-  .mapboxgl-ctrl-geocoder { min-width: 240px; width: 240px; }
-</style>
-
+      /* Put search bar next to the zoom buttons (top-left) */
+      .mapboxgl-ctrl-top-left { display: flex; flex-direction: row; align-items: flex-start; gap: 8px; }
+      .mapboxgl-ctrl-top-left .mapboxgl-ctrl { margin: 2px !important; }
+      .mapboxgl-ctrl-geocoder { min-width: 240px; width: 240px; }
+    </style>
   </head>
 
   <body>
@@ -43,8 +42,14 @@
       });
 
       // Controls
-      map.addControl(new mapboxgl.NavigationControl(), "top-left");
 
+      // Zoom buttons only (top-left)
+      map.addControl(
+        new mapboxgl.NavigationControl({ showZoom: true, showCompass: false }),
+        "top-left"
+      );
+
+      // Search bar (top-left)
       map.addControl(
         new MapboxGeocoder({
           accessToken: mapboxgl.accessToken,
@@ -53,6 +58,18 @@
           placeholder: "Search a place..."
         }),
         "top-left"
+      );
+
+      // Compass / north arrow only (top-right)
+      map.addControl(
+        new mapboxgl.NavigationControl({ showZoom: false, showCompass: true }),
+        "top-right"
+      );
+
+      // Scale bar (bottom-left)
+      map.addControl(
+        new mapboxgl.ScaleControl({ maxWidth: 120, unit: "metric" }),
+        "bottom-left"
       );
 
       // 3D buildings
