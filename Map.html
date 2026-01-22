@@ -1,89 +1,131 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Map view</title>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Heat Stress Map</title>
 
-    <link href="https://api.mapbox.com/mapbox-gl-js/v3.15.0/mapbox-gl.css" rel="stylesheet" />
-    <script src="https://api.mapbox.com/mapbox-gl-js/v3.15.0/mapbox-gl.js"></script>
+  <!-- MapLibre (token-free) -->
+  <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+  <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet"/>
 
-    <!-- Geocoder (search bar) -->
-    <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.3/mapbox-gl-geocoder.css" />
-    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.3/mapbox-gl-geocoder.min.js"></script>
+  <style>
+    html, body { margin: 0; height: 100%; background: #0f0f12; }
+    #map { position: relative; height: 500px; width: 100%; border-radius: 16px; overflow: hidden; }
 
-    <style>
-      body, html { margin: 0; padding: 0; height: 100%; width:100%; }
-      #map { position: absolute; top: 0; bottom: 0; width:100%; }
+    /* MapLibre control spacing */
+    .maplibregl-ctrl-top-left .maplibregl-ctrl { margin: 10px 0 0 10px; }
+    .maplibregl-ctrl-top-right .maplibregl-ctrl { margin: 10px 10px 0 0; }
+    .maplibregl-ctrl-top-right { top: 0px; } /* very top-right */
 
-      /* Put search bar next to the zoom buttons (top-left) */
-      .mapboxgl-ctrl-top-left { display: flex; flex-direction: row; align-items: flex-start; gap: 8px; }
-      .mapboxgl-ctrl-top-left .mapboxgl-ctrl { margin: 2px !important; }
-      .mapboxgl-ctrl-geocoder { min-width: 240px; width: 240px; }
+    .search-ctrl{
+      position:absolute;
+      left:12px;
+      top:12px;
+      z-index:80;
+    }
+    .search-wrap{
+      width: 280px;
+      height: 44px;
+      display:flex;
+      align-items:center;
+      background: #ffffff;
+      border-radius: 999px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+      border: 1px solid rgba(0,0,0,0.10);
+      overflow:hidden;
+    }
+    .search-input{
+      flex:1;
+      height: 44px;
+      padding: 0 14px 0 16px;
+      border: 0;
+      outline: none;
+      background: transparent;
+      color: #111;
+      font: 600 14px system-ui, -apple-system, Segoe UI, Roboto, Arial;
+    }
+    .search-input::placeholder{
+      color: rgba(0,0,0,0.55);
+      font-weight: 600;
+    }
+    .search-icon-btn{
+      width: 44px;
+      height: 44px;
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+    .search-icon-btn svg{
+      width: 20px;
+      height: 20px;
+      fill: rgba(0,0,0,0.75);
+    }
+    .search-icon-btn:hover svg{
+      fill: rgba(0,0,0,0.95);
+    }
 
-      /* Floating legend */
-      .legend-wrap{
-        position: absolute;
-        right: 12px;
-        bottom: 12px;
-        z-index: 10;
-        background: rgba(20, 20, 20, 0.78);
-        color: #fff;
-        border-radius: 10px;
-        padding: 10px 10px 8px 10px;
-        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.25);
-        min-width: 230px;
-        max-width: 260px;
-        backdrop-filter: blur(6px);
-      }
-      .legend-title{
-        font-size: 13px;
-        font-weight: 700;
-        margin: 0 0 6px 0;
-        opacity: 0.95;
-      }
-      .legend-item{
-        margin-top: 10px;
-      }
-      .legend-item:first-child{
-        margin-top: 0;
-      }
-      .legend-label{
-        font-size: 12px;
-        font-weight: 700;
-        margin: 0 0 6px 0;
-      }
-      .legend-bar{
-        width: 100%;
-        height: 16px;
-        border-radius: 6px;
-        display: block;
-      }
-      .legend-minmax{
-        display: flex;
-        justify-content: space-between;
-        font-size: 11px;
-        opacity: 0.9;
-        margin-top: 4px;
-      }
-      .legend-hidden{
-        display: none;
-      }
-    </style>
-  </head>
+    .legend{
+      position:absolute; right:14px; bottom:14px; z-index:55;
+      width: 250px;
+      background: rgba(18,18,20,0.90);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 14px;
+      padding: 10px 10px 8px 10px;
+      box-shadow: 0 18px 60px rgba(0,0,0,0.55);
+      backdrop-filter: blur(10px);
+    }
+    .legend h4{
+      margin: 0 0 8px 0;
+      font: 900 12px system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      color: rgba(255,255,255,0.90);
+      letter-spacing: 0.3px;
+    }
+    .legend-item{ margin-bottom: 10px; }
+    .legend-label{
+      font: 800 11px system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      color: rgba(255,255,255,0.82);
+      margin-bottom: 6px;
+    }
+    .legend-bar{
+      width: 100%;
+      height: 16px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.10);
+      display:block;
+    }
+    .legend-minmax{
+      display:flex; justify-content:space-between;
+      font: 650 11px system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      color: rgba(255,255,255,0.78);
+      margin-top: 4px;
+    }
+    .hidden{ display:none; }
+  </style>
+</head>
 
-  <body>
-    <script id="mapbox-key" type="text/plain">__MAPBOX_KEY__</script>
+<body>
+  <div id="map">
+    
+    <div class="search-ctrl">
+      <div class="search-wrap">
+        <input id="searchBox" class="search-input" type="text" placeholder="Search" />
+        <button id="searchBtn" class="search-icon-btn" type="button" aria-label="Search">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M10 2a8 8 0 105.293 14.293l4.707 4.707 1.414-1.414-4.707-4.707A8 8 0 0010 2zm0 2a6 6 0 110 12 6 6 0 010-12z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
 
-    <div id="map"></div>
+    <div id="legendBox" class="legend hidden">
+      <h4>Legend</h4>
 
-    <!-- Floating legend container -->
-    <div id="legendWrap" class="legend-wrap legend-hidden">
-      <div class="legend-title">Legend</div>
-
-      <div id="legendLST" class="legend-item legend-hidden">
-        <div class="legend-label">__LST_LEGEND_TITLE__</div>
+      <div id="legendLST" class="legend-item hidden">
+        <div class="legend-label">LST (°C)</div>
         <img class="legend-bar" src="__LST_LEGEND_URL__" alt="LST legend" />
         <div class="legend-minmax">
           <span>__LST_VMIN__</span>
@@ -91,8 +133,8 @@
         </div>
       </div>
 
-      <div id="legendSUHI" class="legend-item legend-hidden">
-        <div class="legend-label">__SUHI_LEGEND_TITLE__</div>
+      <div id="legendSUHI" class="legend-item hidden">
+        <div class="legend-label">SUHI (°C)</div>
         <img class="legend-bar" src="__SUHI_LEGEND_URL__" alt="SUHI legend" />
         <div class="legend-minmax">
           <span>__SUHI_VMIN__</span>
@@ -100,243 +142,174 @@
         </div>
       </div>
     </div>
+  </div>
 
-    <script>
-      mapboxgl.accessToken =
-        document.getElementById("mapbox-key").textContent.trim();
+  <script>
+    // =========================
+    // Token-free basemap (OSM raster)
+    // =========================
+    const OSM_RASTER_STYLE = {
+      "version": 8,
+      "sources": {
+        "osm": {
+          "type": "raster",
+          "tiles": [
+            "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          ],
+          "tileSize": 256,
+          "attribution": "© OpenStreetMap contributors"
+        }
+      },
+      "layers": [
+        { "id": "osm", "type": "raster", "source": "osm" }
+      ]
+    };
 
-      // ---- Injected overlay values from Dashboard.py ----
-      const LST_URL = "__LST_URL__";
-      const SUHI_URL = "__SUHI_URL__";
+    const CENTER = __CENTER__;
+    const ZOOM = __ZOOM__;
+    const FIT_BOUNDS = __FIT_BOUNDS__;
 
-      const LST_COORDS = __LST_COORDS__;   // [[w,n],[e,n],[e,s],[w,s]]
-      const SUHI_COORDS = __SUHI_COORDS__;
+    const SHOW_LST = __SHOW_LST__;
+    const SHOW_SUHI = __SHOW_SUHI__;
 
-      const SHOW_LST = __SHOW_LST__;
-      const SHOW_SUHI = __SHOW_SUHI__;
+    const LST_URL = "__LST_URL__";
+    const SUHI_URL = "__SUHI_URL__";
 
-      const LST_OPACITY = __LST_OPACITY__;
-      const SUHI_OPACITY = __SUHI_OPACITY__;
+    const LST_COORDS = __LST_COORDS__;
+    const SUHI_COORDS = __SUHI_COORDS__;
 
-      // Default view: North Rhine-Westphalia (NRW)
-      const map = new mapboxgl.Map({
-        container: "map",
-        style: "__STYLE_URL__",
-        center: [7.5550, 51.4783],
-        pitch: 25,
-        bearing: 0,
-        zoom: 8.5
-      });
+    const LST_OPACITY = parseFloat("__LST_OPACITY__");
+    const SUHI_OPACITY = parseFloat("__SUHI_OPACITY__");
 
-      // Zoom buttons only (top-left)
-      map.addControl(
-        new mapboxgl.NavigationControl({ showZoom: true, showCompass: false }),
-        "top-left"
-      );
+    const map = new maplibregl.Map({
+      container: "map",
+      style: OSM_RASTER_STYLE,
+      center: CENTER,
+      zoom: ZOOM,
+      pitch: 0,
+      bearing: 0,
+      antialias: true
+    });
 
-      // Search bar + zoom + boundary bbox
-      const geocoder = new MapboxGeocoder({
-        accessToken: mapboxgl.accessToken,
-        mapboxgl: mapboxgl,
-        marker: false,
-        placeholder: "Search a place..."
-      });
-      map.addControl(geocoder, "top-left");
+    // Right-top stack: compass/triangle + +/- then fullscreen below
+    map.addControl(new maplibregl.NavigationControl(), "top-right");
+    map.addControl(new maplibregl.FullscreenControl(), "top-right");
+    map.addControl(new maplibregl.ScaleControl({ maxWidth: 120, unit: "metric" }));
 
-      let lastSearchBbox = null;
+    // -------------------------
+    // Search (OSM Nominatim)
+    // -------------------------
+    async function geocodeNominatim(q) {
+      const url = "https://nominatim.openstreetmap.org/search?format=json&limit=1&q=" + encodeURIComponent(q);
+      const r = await fetch(url, { headers: { "Accept": "application/json" } });
+      const data = await r.json();
+      if (!data || !data.length) return null;
+      return { lon: parseFloat(data[0].lon), lat: parseFloat(data[0].lat) };
+    }
 
-      function drawSearchBoundaryFromBbox(bbox) {
-        const west = bbox[0], south = bbox[1], east = bbox[2], north = bbox[3];
+    async function doSearch() {
+      const box = document.getElementById("searchBox");
+      const q = (box.value || "").trim();
+      if (!q) return;
 
-        const poly = {
-          "type": "FeatureCollection",
-          "features": [{
-            "type": "Feature",
-            "properties": {},
-            "geometry": {
-              "type": "Polygon",
-              "coordinates": [[
-                [west, south],
-                [east, south],
-                [east, north],
-                [west, north],
-                [west, south]
-              ]]
-            }
-          }]
-        };
+      const btn = document.getElementById("searchBtn");
+      btn.disabled = true;
 
-        if (map.getLayer("search-boundary-line")) map.removeLayer("search-boundary-line");
-        if (map.getLayer("search-boundary-fill")) map.removeLayer("search-boundary-fill");
-        if (map.getSource("search-boundary")) map.removeSource("search-boundary");
+      try {
+        const p = await geocodeNominatim(q);
+        if (!p) return;
+        map.flyTo({ center: [p.lon, p.lat], zoom: Math.max(map.getZoom(), 12), duration: 900 });
+      } catch (e) {
+        // ignore
+      } finally {
+        btn.disabled = false;
+      }
+    }
 
-        map.addSource("search-boundary", { type: "geojson", data: poly });
+    document.getElementById("searchBtn").addEventListener("click", doSearch);
+    document.getElementById("searchBox").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") doSearch();
+    });
 
-        map.addLayer({
-          id: "search-boundary-fill",
-          type: "fill",
-          source: "search-boundary",
-          paint: { "fill-opacity": 0.08 }
-        });
+    // -------------------------
+    // Overlay helpers
+    // -------------------------
+    function dataUrlToBlobUrl(dataUrl) {
+      try {
+        if (!dataUrl || typeof dataUrl !== "string") return dataUrl;
+        if (!dataUrl.startsWith("data:")) return dataUrl;
 
-        map.addLayer({
-          id: "search-boundary-line",
-          type: "line",
-          source: "search-boundary",
-          paint: { "line-width": 2 }
-        });
+        const parts = dataUrl.split(",");
+        if (parts.length < 2) return dataUrl;
+
+        const header = parts[0];
+        const b64 = parts[1];
+
+        const m = header.match(/data:(.*);base64/);
+        const mime = (m && m[1]) ? m[1] : "image/png";
+
+        const byteChars = atob(b64);
+        const byteNumbers = new Array(byteChars.length);
+        for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+
+        const blob = new Blob([new Uint8Array(byteNumbers)], { type: mime });
+        return URL.createObjectURL(blob);
+      } catch (e) {
+        return dataUrl;
+      }
+    }
+
+    function addRaster(id, url, coords, opacity) {
+      if (!url || !coords || coords.length !== 4) return;
+
+      const safeUrl = dataUrlToBlobUrl(url);
+
+      if (map.getSource(id)) {
+        const lyr = id + "_layer";
+        if (map.getLayer(lyr)) map.setPaintProperty(lyr, "raster-opacity", opacity);
+        return;
       }
 
-      geocoder.on("result", (e) => {
-        const r = e.result;
-
-        if (r && r.bbox && r.bbox.length === 4) {
-          lastSearchBbox = r.bbox;
-
-          map.fitBounds(
-            [[r.bbox[0], r.bbox[1]], [r.bbox[2], r.bbox[3]]],
-            { padding: 40 }
-          );
-
-          if (map.isStyleLoaded()) drawSearchBoundaryFromBbox(lastSearchBbox);
-          return;
-        }
-
-        if (r && r.geometry && r.geometry.coordinates) {
-          map.flyTo({ center: r.geometry.coordinates, zoom: 12 });
-          lastSearchBbox = null;
-        }
+      map.addSource(id, { type: "image", url: safeUrl, coordinates: coords });
+      map.addLayer({
+        id: id + "_layer",
+        type: "raster",
+        source: id,
+        paint: { "raster-opacity": opacity }
       });
+    }
 
-      // Compass / north arrow only (top-right)
-      map.addControl(
-        new mapboxgl.NavigationControl({ showZoom: false, showCompass: true }),
-        "top-right"
-      );
+    function ensureRasters() {
+      if (SHOW_LST) addRaster("LST", LST_URL, LST_COORDS, LST_OPACITY);
+      if (SHOW_SUHI) addRaster("SUHI", SUHI_URL, SUHI_COORDS, SUHI_OPACITY);
+    }
 
-      // Scale bar (bottom-left)
-      map.addControl(
-        new mapboxgl.ScaleControl({ maxWidth: 120, unit: "metric" }),
-        "bottom-left"
-      );
+    function updateLegend() {
+      const box = document.getElementById("legendBox");
+      const lst = document.getElementById("legendLST");
+      const suhi = document.getElementById("legendSUHI");
 
-      // Legend show/hide based on overlay selection
-      function updateLegendVisibility() {
-        const wrap = document.getElementById("legendWrap");
-        const lst = document.getElementById("legendLST");
-        const suhi = document.getElementById("legendSUHI");
+      const any = (SHOW_LST && LST_URL) || (SHOW_SUHI && SUHI_URL);
+      box.classList.toggle("hidden", !any);
 
-        const showAny = (SHOW_LST === true) || (SHOW_SUHI === true);
+      if (lst) lst.classList.toggle("hidden", !(SHOW_LST && LST_URL));
+      if (suhi) suhi.classList.toggle("hidden", !(SHOW_SUHI && SUHI_URL));
+    }
 
-        if (!showAny) {
-          wrap.classList.add("legend-hidden");
-          lst.classList.add("legend-hidden");
-          suhi.classList.add("legend-hidden");
-          return;
-        }
+    map.on("style.load", () => {
+      ensureRasters();
+      updateLegend();
+    });
 
-        wrap.classList.remove("legend-hidden");
-
-        if (SHOW_LST === true) lst.classList.remove("legend-hidden");
-        else lst.classList.add("legend-hidden");
-
-        if (SHOW_SUHI === true) suhi.classList.remove("legend-hidden");
-        else suhi.classList.add("legend-hidden");
+    map.on("load", () => {
+      ensureRasters();
+      if (FIT_BOUNDS && Array.isArray(FIT_BOUNDS)) {
+        map.fitBounds(FIT_BOUNDS, { padding: 80, duration: 0 });
       }
-
-      // ✅ style.load so overlays + 3D buildings (+ boundary) re-add on basemap change
-      map.on("style.load", () => {
-
-        // 1) Raster overlays
-        if (map.getLayer("lst_layer")) map.removeLayer("lst_layer");
-        if (map.getSource("lst_src")) map.removeSource("lst_src");
-        if (map.getLayer("suhi_layer")) map.removeLayer("suhi_layer");
-        if (map.getSource("suhi_src")) map.removeSource("suhi_src");
-
-        if (LST_URL && LST_URL.startsWith("data:image") && Array.isArray(LST_COORDS)) {
-          map.addSource("lst_src", {
-            type: "image",
-            url: LST_URL,
-            coordinates: LST_COORDS
-          });
-
-          map.addLayer({
-            id: "lst_layer",
-            type: "raster",
-            source: "lst_src",
-            layout: { visibility: SHOW_LST ? "visible" : "none" },
-            paint: { "raster-opacity": LST_OPACITY }
-          });
-        }
-
-        if (SUHI_URL && SUHI_URL.startsWith("data:image") && Array.isArray(SUHI_COORDS)) {
-          map.addSource("suhi_src", {
-            type: "image",
-            url: SUHI_URL,
-            coordinates: SUHI_COORDS
-          });
-
-          map.addLayer({
-            id: "suhi_layer",
-            type: "raster",
-            source: "suhi_src",
-            layout: { visibility: SHOW_SUHI ? "visible" : "none" },
-            paint: { "raster-opacity": SUHI_OPACITY }
-          });
-        }
-
-        // 2) 3D buildings
-        const layers = map.getStyle().layers || [];
-        const labelLayer = layers.find((l) => l.type === "symbol" && l.layout && l.layout["text-field"]);
-        const labelLayerId = labelLayer ? labelLayer.id : null;
-
-        if (map.getLayer("add-3d-buildings")) {
-          map.removeLayer("add-3d-buildings");
-        }
-
-        if (labelLayerId) {
-          map.addLayer(
-            {
-              id: "add-3d-buildings",
-              source: "composite",
-              "source-layer": "building",
-              filter: ["==", ["get", "extrude"], "true"],
-              type: "fill-extrusion",
-              minzoom: 15,
-              paint: {
-                "fill-extrusion-color": "#ffffff",
-                "fill-extrusion-height": [
-                  "interpolate",
-                  ["linear"],
-                  ["zoom"],
-                  15, 0,
-                  15.05, ["get", "height"]
-                ],
-                "fill-extrusion-base": [
-                  "interpolate",
-                  ["linear"],
-                  ["zoom"],
-                  15, 0,
-                  15.05, ["get", "min_height"]
-                ],
-                "fill-extrusion-opacity": 1.0
-              }
-            },
-            labelLayerId
-          );
-        }
-
-        // 3) Re-draw boundary after basemap/style changes
-        if (lastSearchBbox) {
-          drawSearchBoundaryFromBbox(lastSearchBbox);
-        }
-
-        // 4) Legend visibility
-        updateLegendVisibility();
-      });
-
-      // run once on first load
-      updateLegendVisibility();
-    </script>
-  </body>
+      updateLegend();
+    });
+  </script>
+</body>
 </html>

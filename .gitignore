@@ -2,3 +2,14 @@
 __pycache__/
 *.pyc
 .streamlit/secrets.toml
+
+# --- generated outputs / large data ---
+data/2022_final_outputs/
+data/2024_final_outputs/
+data/overlays_png/
+*.tif
+*.tiff
+*.vrt
+*.aux.xml
+*.ovr
+
