@@ -552,9 +552,9 @@ st.markdown(
 # Data config
 # ---------------------------
 CITIES = {
-    "Wuppertal": {"center": [7.1500, 51.2562], "zoom": 11.0},
-    "Essen":     {"center": [7.0123, 51.4556], "zoom": 10.6},
-    "Soest":     {"center": [8.1060, 51.5710], "zoom": 12.0},
+    "Wuppertal": {"center": [7.1500, 51.2562], "zoom": 10.5},
+    "Essen":     {"center": [7.0123, 51.4556], "zoom": 10.0},
+    "Soest":     {"center": [8.1060, 51.5710], "zoom": 11.0},
 }
 YEARS = ["2022", "2024"]
 
@@ -739,7 +739,7 @@ with mainM:
         selected_cities = ["Wuppertal", "Essen", "Soest"]
         cs = [CITIES[c]["center"] for c in selected_cities]
         center = [sum(x[0] for x in cs) / len(cs), sum(x[1] for x in cs) / len(cs)]
-        zoom = 9
+        zoom = 8.9
     else:
         selected_cities = [city_choice]
         center = CITIES[city_choice]["center"]

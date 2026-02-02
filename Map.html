@@ -131,30 +131,43 @@
 
   <script>
     // =====================================================
-    // Basemaps (with a GUARANTEED fallback for Map)
+    // Settings / Streamlit placeholders
     // =====================================================
+    const CENTER = (typeof __CENTER__ !== "undefined") ? __CENTER__ : [7.0123, 51.4556];
+    const ZOOM   = (typeof __ZOOM__   !== "undefined") ? __ZOOM__   : 11;
+    const MAX_PITCH = 85;
 
-    // Preferred Map basemap (vector)
-    const OFM_LIBERTY = "https://tiles.openfreemap.org/styles/liberty";
+    const OVERLAYS = (typeof __OVERLAYS_PAYLOAD__ !== "undefined") ? __OVERLAYS_PAYLOAD__ : null;
 
-    // Fallback Map basemap (raster) => never depends on remote style JSON
-    const OSM_RASTER_FALLBACK = {
+    const BASEMAP_STORAGE_KEY = "hs_basemap_choice_v3"; // bump key to avoid old cached behavior
+
+    function getSavedBasemapKey() {
+      try {
+        const v = localStorage.getItem(BASEMAP_STORAGE_KEY);
+        return (v === "sat" || v === "map") ? v : "map";
+      } catch (e) { return "map"; }
+    }
+    function saveBasemapKey(key) {
+      try { localStorage.setItem(BASEMAP_STORAGE_KEY, key); } catch (e) {}
+    }
+
+    let activeBasemapKey = getSavedBasemapKey();
+
+    // =====================================================
+    // ✅ ONE STYLE (NO setStyle). Both basemaps are inside it.
+    // =====================================================
+    const COMBINED_STYLE = {
       version: 8,
       sources: {
+        // "Map" basemap (OSM raster light)
         osm: {
           type: "raster",
           tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
           tileSize: 256,
           attribution: "© OpenStreetMap contributors"
-        }
-      },
-      layers: [{ id: "osm", type: "raster", source: "osm" }]
-    };
+        },
 
-    // Satellite basemap (inline style object)
-    const SAT_GLOBAL_PLUS_NRW = {
-      version: 8,
-      sources: {
+        // "Satellite" basemap (Sentinel + NRW DOP)
         s2: {
           type: "raster",
           tiles: [
@@ -176,40 +189,53 @@
           ],
           tileSize: 256,
           attribution: "Geobasis NRW – Digitale Orthophotos (DOP)"
+        },
+
+        // DEM for terrain + hillshade (always available; never lost)
+        dem: {
+          type: "raster-dem",
+          tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
+          tileSize: 256,
+          encoding: "terrarium"
         }
       },
+
       layers: [
-        { id: "s2", type: "raster", source: "s2" },
-        { id: "nrw_dop", type: "raster", source: "nrw_dop", minzoom: 10, paint: { "raster-opacity": 1 } }
+        // --- Basemap layers (visibility toggled) ---
+        {
+          id: "bm-osm",
+          type: "raster",
+          source: "osm",
+          layout: { visibility: (activeBasemapKey === "map") ? "visible" : "none" }
+        },
+        {
+          id: "bm-s2",
+          type: "raster",
+          source: "s2",
+          layout: { visibility: (activeBasemapKey === "sat") ? "visible" : "none" }
+        },
+        {
+          id: "bm-nrw",
+          type: "raster",
+          source: "nrw_dop",
+          minzoom: 10,
+          paint: { "raster-opacity": 1 },
+          layout: { visibility: (activeBasemapKey === "sat") ? "visible" : "none" }
+        },
+
+        // --- Hillshade on top of basemaps (always visible) ---
+        {
+          id: "hillshade",
+          type: "hillshade",
+          source: "dem",
+          layout: { visibility: "visible" }
+        }
       ]
     };
 
-    const BASEMAPS = { map: OFM_LIBERTY, sat: SAT_GLOBAL_PLUS_NRW };
-    const BASEMAP_STORAGE_KEY = "hs_basemap_choice_v2";
-
-    function getSavedBasemapKey() {
-      try {
-        const v = localStorage.getItem(BASEMAP_STORAGE_KEY);
-        return (v === "sat" || v === "map") ? v : "map";
-      } catch (e) { return "map"; }
-    }
-    function saveBasemapKey(key) {
-      try { localStorage.setItem(BASEMAP_STORAGE_KEY, key); } catch (e) {}
-    }
-
-    const CENTER = (typeof __CENTER__ !== "undefined") ? __CENTER__ : [7.0123, 51.4556];
-    const ZOOM   = (typeof __ZOOM__   !== "undefined") ? __ZOOM__   : 11;
-    const MAX_PITCH = 85;
-
-    // Streamlit payload (boundaries)
-    const OVERLAYS = (typeof __OVERLAYS_PAYLOAD__ !== "undefined") ? __OVERLAYS_PAYLOAD__ : null;
-
-    let activeBasemapKey = getSavedBasemapKey();
-    let pendingCamera = null;
-
     const map = new maplibregl.Map({
       container: "map",
-      style: BASEMAPS[activeBasemapKey],
+      style: COMBINED_STYLE,
       center: CENTER,
       zoom: ZOOM,
       pitch: 0,
@@ -226,46 +252,26 @@
     document.addEventListener("fullscreenchange", () => { try { map.resize(); } catch(e) {} });
 
     // =====================================================
-    // TERRAIN + HILLSHADE (safe)
+    // ✅ Terrain (never disappears now)
     // =====================================================
-    function applyTerrainSafe() {
+    function applyTerrain() {
       try {
-        if (!map.getSource("dem")) {
-          map.addSource("dem", {
-            type: "raster-dem",
-            tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
-            tileSize: 256,
-            encoding: "terrarium"
-          });
-        }
-
+        map.setMaxPitch(MAX_PITCH);
         map.setTerrain({ source: "dem", exaggeration: 1.2 });
-
-        if (!map.getLayer("hillshade")) {
-          const layers = (map.getStyle() && map.getStyle().layers) ? map.getStyle().layers : [];
-          const firstSymbol = layers.find(l => l.type === "symbol");
-          const beforeId = firstSymbol ? firstSymbol.id : undefined;
-
-          map.addLayer({ id: "hillshade", type: "hillshade", source: "dem" }, beforeId);
-        }
-      } catch (e) {
-        // never block boundaries
-      }
+      } catch(e) {}
     }
 
     // =====================================================
-    // CITY BOUNDARIES (cached)
+    // ✅ City boundaries (added ONCE, never wiped)
     // =====================================================
     const BND_SRC  = "city-boundaries";
     const BND_LINE = "city-boundaries-line";
 
     function boundaryLineColor() {
-      return (activeBasemapKey === "sat")
-        ? "rgba(255,255,255,0.92)"
-        : "rgba(0,0,0,0.92)";
-    }
+  return "rgba(0, 200, 255, 0.95)"; 
+}
 
-    let boundaryPromise = null;
+let boundaryPromise = null;
 
     function getBoundaryFC() {
       if (boundaryPromise) return boundaryPromise;
@@ -307,91 +313,39 @@
         map.getSource(BND_SRC).setData(fc);
       }
 
-      const layers = (map.getStyle() && map.getStyle().layers) ? map.getStyle().layers : [];
-      const firstSymbol = layers.find(l => l.type === "symbol");
-      const beforeId = firstSymbol ? firstSymbol.id : undefined;
-
       if (!map.getLayer(BND_LINE)) {
+        // Put boundaries on top of hillshade
         map.addLayer({
           id: BND_LINE,
           type: "line",
           source: BND_SRC,
           layout: { "line-join": "round", "line-cap": "round" },
           paint: { "line-color": boundaryLineColor(), "line-width": 2.6 }
-        }, beforeId);
+        });
       } else {
         map.setPaintProperty(BND_LINE, "line-color", boundaryLineColor());
       }
     }
 
     // =====================================================
-    // ✅ Rehydrate on every style.load (DO NOT wait for isStyleLoaded)
+    // ✅ Basemap switching (NO setStyle)
     // =====================================================
-    let rehydrateToken = 0;
+    function applyBasemapVisibility() {
+      const isMap = (activeBasemapKey === "map");
 
-    function requestRehydrate(reason) {
-      const token = ++rehydrateToken;
-      setTimeout(async () => {
-        if (token !== rehydrateToken) return;
+      // basemap visibility
+      map.setLayoutProperty("bm-osm", "visibility", isMap ? "visible" : "none");
+      map.setLayoutProperty("bm-s2",  "visibility", isMap ? "none" : "visible");
+      map.setLayoutProperty("bm-nrw", "visibility", isMap ? "none" : "visible");
 
-        if (pendingCamera) {
-          try { map.jumpTo(pendingCamera); } catch(e) {}
-          pendingCamera = null;
-        }
-
-        try { map.setMaxPitch(MAX_PITCH); } catch(e) {}
-        applyTerrainSafe();
-        try { await ensureCityBoundaries(); } catch(e) {}
-
-        // Streamlit/iframe safety
-        try { map.resize(); } catch(e) {}
-      }, 0);
-    }
-
-    map.once("load", () => {
-      map.easeTo({ pitch: 0, bearing: 0, duration: 0 });
-      requestRehydrate("initial-load");
-      setTimeout(() => { try { map.resize(); } catch(e) {} }, 100);
-    });
-
-    map.on("style.load", () => {
-      requestRehydrate("style.load");
-      setTimeout(() => { try { map.resize(); } catch(e) {} }, 100);
-    });
-
-    // =====================================================
-    // ✅ GUARANTEED MAP LOAD: if OpenFreeMap fails, switch to OSM raster
-    // =====================================================
-    let mapFallbackUsed = false;
-    let watchdogToken = 0;
-
-    function startMapStyleWatchdog() {
-      const t = ++watchdogToken;
-      setTimeout(() => {
-        if (t !== watchdogToken) return;
-        if (activeBasemapKey !== "map") return;
-
-        // If style is still not loaded after 6s, force fallback.
-        if (!map.isStyleLoaded() && !mapFallbackUsed) {
-          mapFallbackUsed = true;
-          map.setStyle(OSM_RASTER_FALLBACK);
-        }
-      }, 6000);
-    }
-
-    map.on("error", (e) => {
-      const msg = (e && e.error && e.error.message) ? e.error.message : "";
-      if (activeBasemapKey === "map" && !mapFallbackUsed) {
-        // If OpenFreeMap style fails to fetch, fallback immediately.
-        if (msg.includes("openfreemap") || msg.includes("Failed to load") || msg.includes("NetworkError")) {
-          mapFallbackUsed = true;
-          map.setStyle(OSM_RASTER_FALLBACK);
-        }
+      // boundary color update
+      if (map.getLayer(BND_LINE)) {
+        map.setPaintProperty(BND_LINE, "line-color", boundaryLineColor());
       }
-    });
+    }
 
     // =====================================================
-    // Basemap toggle UI
+    // Toggle UI
     // =====================================================
     const bmMapBtn = document.getElementById("bmMap");
     const bmSatBtn = document.getElementById("bmSat");
@@ -408,32 +362,36 @@
       if (key !== "map" && key !== "sat") return;
       if (key === activeBasemapKey) return;
 
-      pendingCamera = {
-        center: map.getCenter(),
-        zoom: map.getZoom(),
-        pitch: map.getPitch(),
-        bearing: map.getBearing()
-      };
-
       activeBasemapKey = key;
       saveBasemapKey(key);
       syncToggleUI();
 
-      map.setStyle(BASEMAPS[key]);
-
-      // If switching to Map, start watchdog so it never stays blank.
-      if (key === "map") startMapStyleWatchdog();
+      // Just toggle visibility (nothing is destroyed)
+      try { applyBasemapVisibility(); } catch(e) {}
+      try { map.resize(); } catch(e) {}
     }
 
     bmMapBtn.addEventListener("click", () => setBasemap("map"));
     bmSatBtn.addEventListener("click", () => setBasemap("sat"));
-    syncToggleUI();
-
-    // If we start on map, watchdog too
-    if (activeBasemapKey === "map") startMapStyleWatchdog();
 
     // =====================================================
-    // Search (Photon autosuggest + search)
+    // Initial boot
+    // =====================================================
+    map.once("load", async () => {
+      map.easeTo({ pitch: 0, bearing: 0, duration: 0 });
+
+      applyTerrain();
+      syncToggleUI();
+      applyBasemapVisibility();
+
+      try { await ensureCityBoundaries(); } catch(e) {}
+
+      // Streamlit iframe safety
+      setTimeout(() => { try { map.resize(); } catch(e) {} }, 100);
+    });
+
+    // =====================================================
+    // Search (Photon autosuggest + search) - unchanged
     // =====================================================
     const inputEl = document.getElementById("searchBox");
     const btnEl = document.getElementById("searchBtn");
