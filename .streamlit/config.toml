@@ -1,9 +1,7 @@
 [theme]
-primaryColor="#3b80cfff"
-backgroundColor="#2a2a2a"
-secondaryBackgroundColor="#121212"
-textColor="#ffffff"
-linkColor="#3b80cfff"
-borderColor = "#7c7c7c"
-showWidgetBorder = true
+base="dark"
+primaryColor="#3B80CF"
+backgroundColor="#0E1116"
+secondaryBackgroundColor="#151A22"
+textColor="#E8EDF4"
 font="sans serif"
